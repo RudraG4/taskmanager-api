@@ -1,6 +1,6 @@
-const mongoose = require('mongoose')
-const Sequence = require('./Sequence')
-const STATES = require('./TaskState')
+import mongoose from 'mongoose'
+import Sequence from './Sequence.js'
+import STATES from './TaskState.js'
 
 const TaskStructure = {
   parenttask: String,
@@ -89,4 +89,4 @@ TaskSchema.pre('save', async function (next) {
   }
 })
 
-module.exports = mongoose.model('task', TaskSchema)
+export default mongoose.model('task', TaskSchema)

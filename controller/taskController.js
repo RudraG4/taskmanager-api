@@ -1,6 +1,6 @@
-const _ = require('lodash')
-const { nLog, eLog } = require('../util/rlogger')
-const Task = require('../database/models/Task')
+import Task from '../database/models/Task.js'
+import _ from 'lodash'
+import { nLog, eLog } from '../util/rlogger.js'
 
 const createTask = async (request, response) => {
   const json = {}
@@ -117,7 +117,7 @@ const report = async (request, response) => {
   response.status(200).send('Tasks: ')
 }
 
-module.exports = {
+export default {
   createTask,
   queryTasks,
   queryTask,

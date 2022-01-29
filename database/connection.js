@@ -1,6 +1,8 @@
-require('dotenv').config()
-const mongoose = require('mongoose')
-const { nLog } = require('../util/rlogger')
+import dotenv from 'dotenv'
+import mongoose from 'mongoose'
+import { nLog } from '../util/rlogger.js'
+
+dotenv.config()
 
 const MONGO_USERNAME = encodeURIComponent(process.env.MONGO_USERNAME)
 const MONGO_PASSWORD = encodeURIComponent(process.env.MONGO_PASSWORD)
@@ -23,5 +25,7 @@ const disconnectDB = (callback) => {
   return mongoose.disconnect(callback)
 }
 
-module.exports.connectDB = connectDB
-module.exports.disconnectDB = disconnectDB
+export default {
+  connectDB,
+  disconnectDB
+}

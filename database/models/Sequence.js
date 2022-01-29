@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const sequenceSchema = new mongoose.Schema({
   model: { type: String, required: true },
@@ -8,4 +8,4 @@ const sequenceSchema = new mongoose.Schema({
 
 sequenceSchema.index({ field: 1, model: 1 }, { unique: true, required: true, index: -1 })
 
-module.exports = mongoose.model('sequence', sequenceSchema)
+export default mongoose.model('sequence', sequenceSchema)

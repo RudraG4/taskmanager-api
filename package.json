@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A Taskmanager API project developed using Node JS, Express, MongoDB and Mongoose wrapper.",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "lint": "eslint ./**/*.js",
     "start": "nodemon server.js"
@@ -26,6 +27,7 @@
     "express": "^4.17.2",
     "lodash": "^4.17.21",
     "marked": "^4.0.10",
+    "moment": "^2.29.1",
     "mongoose": "^6.1.8"
   },
   "devDependencies": {

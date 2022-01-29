@@ -1,14 +1,15 @@
-const express = require('express')
-const path = require('path')
-const fs = require('fs')
-const bodyParser = require('body-parser')
-const cors = require('cors')
-require('dotenv').config()
+import express from 'express'
+import path from 'path'
+import fs from 'fs'
+import bodyParser from 'body-parser'
+import cors from 'cors'
+import dotenv from 'dotenv'
+import tasks from './routes/tasks.js' // Task Routes
+import { marked } from 'marked' // Markdown parser
+import { rLog, eLog, nLog } from './util/rlogger.js' // Simple Colored Loggers
+import db from './database/connection.js'
 
-const { marked } = require('marked') // Markdown parser
-const tasks = require('./routes/tasks') // Task Routes
-const { rLog, eLog, nLog } = require('./util/rlogger') // Simple Colored Loggers
-const { connectDB, disconnectDB } = require('./database/connection')
+dotenv.config()
 
 const app = express()
 const port = process.env.PORT || 5000
@@ -32,7 +33,7 @@ app.get('/', async (req, res) => {
 
 const run = async () => {
   try {
-    await connectDB()
+    await db.connectDB()
     app.listen(port, nLog(`Server is listening on port ${port}`))
   } catch (e) {
     eLog(`Error connecting.. ${e}`)
@@ -41,5 +42,5 @@ const run = async () => {
 
 run()
 
-process.on('beforeExit', disconnectDB)
-process.on('SIGINT', disconnectDB)
+process.on('beforeExit', db.disconnectDB)
+process.on('SIGINT', db.disconnectDB)

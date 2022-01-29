@@ -1,5 +1,5 @@
-const express = require('express')
-const taskController = require('../controller/taskController')
+import express from 'express'
+import taskController from '../controller/taskController.js'
 
 const tasks = express.Router()
 
@@ -21,4 +21,4 @@ tasks.patch('/:taskid', taskController.updateTask)
 // Query Task Report(Completed, InProgress, Todo etc.)
 tasks.get('/report', taskController.report)
 
-module.exports = tasks
+export default tasks

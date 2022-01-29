@@ -23,7 +23,7 @@ const eLog = (...data) => {
   log(`${FgRed}${bright}${data}`)
 }
 
-module.exports = {
+export {
   rLog,
   eLog,
   nLog
