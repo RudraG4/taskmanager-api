@@ -20,7 +20,7 @@ app.use(rLog)
 
 app.use('/api/v1/tasks', tasks)
 
-app.get('/', async(req, res) => {
+app.get('/', async (req, res) => {
   const readmePath = path.resolve(__dirname, 'README.md')
   await fs.readFile(readmePath, (err, data) => {
     if (err) {
@@ -30,7 +30,7 @@ app.get('/', async(req, res) => {
   })
 })
 
-const run = async() => {
+const run = async () => {
   try {
     await connectDB()
     app.listen(port, nLog(`Server is listening on port ${port}`))

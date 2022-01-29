@@ -69,7 +69,7 @@ const TaskStructure = {
 const TaskSchema = new mongoose.Schema(TaskStructure)
 
 // Pre Hook(middleware) for the model. Auto Increment and Save
-TaskSchema.pre('save', async function(next) {
+TaskSchema.pre('save', async function (next) {
   try {
     if (this.isNew) {
       const sequence = await Sequence.findOneAndUpdate({ model: 'Task', field: 'taskid' },
@@ -80,6 +80,8 @@ TaskSchema.pre('save', async function(next) {
       } else {
         this.taskid = `T-${('00' + sequence.seq).slice(-2)}`
       }
+    } else {
+      this.updatedat = new Date().toISOString()
     }
     next()
   } catch (error) {
