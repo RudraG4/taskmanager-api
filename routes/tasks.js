@@ -1,23 +1,24 @@
-const express = require('express');
-const taskController = require("../controller/taskController");
-const tasks =  express.Router();
+const express = require('express')
+const taskController = require('../controller/taskController')
 
-//Create a new Task
-tasks.post("/", taskController.createTask);
+const tasks = express.Router()
 
-//Query All Tasks
-tasks.get("/", taskController.queryTasks);
+// Create a new Task
+tasks.post('/', taskController.createTask)
 
-//Query a specific Task
-tasks.get("/:taskid", taskController.queryTask);
+// Query All Tasks
+tasks.get('/', taskController.queryTasks)
 
-//Delete a specific Task
-tasks.delete("/:taskid", taskController.deleteTask);
+// Query a specific Task
+tasks.get('/:taskid', taskController.queryTask)
 
-//Update a specific Task
-tasks.patch("/:taskid", taskController.updateTask);
+// Delete a specific Task
+tasks.delete('/:taskid', taskController.deleteTask)
 
-//Query Task Report(Completed, InProgress, Todo etc.)
-tasks.get("/report", taskController.report);
+// Update a specific Task
+tasks.patch('/:taskid', taskController.updateTask)
 
-module.exports = tasks;
+// Query Task Report(Completed, InProgress, Todo etc.)
+tasks.get('/report', taskController.report)
+
+module.exports = tasks
