@@ -34,7 +34,7 @@ const isOverlapping = (starttime, endtime) => {
   return Promise.resolve(0)
 }
 
-const saveTask = async (data, parent) => {
+const validate = async (data, parent) => {
   if ((data.starttime && !isValidDate(data.starttime)) || (data.endtime && !isValidDate(data.endtime))) {
     throw new Error('Invalid date format. Valid format YYYY-MM-DD HH:mm:ss')
   }
@@ -55,6 +55,11 @@ const saveTask = async (data, parent) => {
       throw new Error('Task start/endtime overlaps with one or more other tasks')
     }  
   }
+  return data
+}
+
+const create = (data, parent) => {
+  data = validate(data, parent)
   return Task.create(data)
 }
 
@@ -70,11 +75,11 @@ const createTask = async (request, response) => {
       data.subtasks = []
     }
 
-    const parentTask = await saveTask(data)
+    const parentTask = await create(data)
     parentTaskId = parentTask.taskid
 
     if (subTasks && subTasks.length) {
-      subTasks = subTasks.map((subtask) => saveTask(subtask, parentTask))
+      subTasks = subTasks.map((subtask) => create(subtask, parentTask))
       subTaskIds = (await Promise.all(subTasks)).map((task) => task._id)
       if (subTaskIds.length) {
         parentTask.subtasks = subTaskIds
@@ -181,10 +186,35 @@ const deleteTask = async (request, response) => {
   }
 }
 
-// TODO
 const updateTask = async (request, response) => {
-  nLog('Updating Task')
-  response.status(200).send('Tasks: ')
+  const json = {}
+  try {
+    const { taskid } = request.params
+    const task = await Task.findOne({ taskid })
+    if (_.isEmpty(task)) {
+      return response.status(200).json({ status: 'failure', error: 'No matching task found' })
+    }
+    const data = request.body
+    if (_.has(data, 'description')) task.description = data.description
+    if (_.has(data, 'starttime')) task.starttime = data.starttime
+    if (_.has(data, 'endtime')) task.endtime = data.endtime
+    if (_.has(data, 'tags')) task.tags = data.tags || []
+    if (_.has(data, 'links')) task.links = data.links || []
+    if (_.has(data, 'status')) task.status = data.status
+    let parentTask
+    if (task.parenttask) parentTask = await Task.findOne({ taskid: task.parenttask })
+    validate(task, parentTask)
+    json.status = 'success'
+    json.result = await Task.updateOne({ taskid }, task, { runValidators: true, new: true })
+    response.status(200)
+  } catch (e) {
+    eLog(`Error: ${e.message}`)
+    json.status = 'failure'
+    json.error = e.message
+    response.status(500)
+  }
+  nLog(`Returning: ${JSON.stringify(json)}`)
+  return response.json(json)
 }
 
 // TODO
