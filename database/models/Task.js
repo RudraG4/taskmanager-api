@@ -23,15 +23,7 @@ const TaskStructure = {
     required: [true, 'Task Type (SwimLane) is required']
   },
   starttime: Date,
-  endtime: {
-    type: Date,
-    validate: {
-      validator: (v) => {
-        return true
-      },
-      message: props => `${props.value} must be future of Task Start Time`
-    }
-  },
+  endtime: Date,
   userid: {
     type: String,
     required: [true, 'User is required']
@@ -54,12 +46,12 @@ const TaskStructure = {
     body: { type: String, required: [true, 'Comment Body is required'], maxLength: [250, 'Comment exceeds max size 250'] },
     date: { type: Date, default: Date.now }
   }],
-  createdat: {
+  created: {
     type: Date,
     immutable: true,
     default: Date.now
   },
-  updatedat: {
+  updated: {
     type: Date,
     immutable: true,
     default: Date.now
