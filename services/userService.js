@@ -10,9 +10,9 @@ const findByEmail = async (email) => {
   return null
 }
 
-const findByUserName = async (username, deSelect = '') => {
+const findByUserName = async (username, selectFields = '') => {
   if (username) {
-    const select = '-__v -_id ' + deSelect
+    const select = '-__v -_id ' + selectFields
     return await User.findOne({ username })
       .select(select)
   }
@@ -47,9 +47,7 @@ export const findUser = async (request, response) => {
     if (!_user) {
       return Failure(response, 200, `${username} username is not available`)
     }
-    const user = _user
-    delete user.password
-    return Success(response, 200, user)
+    return Success(response, 200, _user)
   } catch (error) {
     return Failure(response, 500, error)
   }
