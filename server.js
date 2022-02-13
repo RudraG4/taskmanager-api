@@ -9,17 +9,19 @@ import bodyParser from 'body-parser'
 import helmet from 'helmet'
 import cors from 'cors'
 import ratelimit from 'express-rate-limit'
-import tasks from './routes/tasks.js' // Task Routes
-import { marked } from 'marked' // Markdown parser
-import { eLog, nLog } from './util/rlogger.js' // Simple Colored Loggers
-import db from './database/connection.js'
+import { marked } from 'marked'
+import { eLog, nLog } from './util/rlogger.js'
+import signupRoute from './routes/signupRoute.js'
+import userRoute from './routes/userRoute.js'
+import tasksRoute from './routes/tasksRoute.js'
+import db from './db/connection.js'
 
 dotenv.config()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const port = process.env.PORT || 5000
 const corsOptions = {
-  origin: 'http://localhost:3000',
+  origin: process.env.ALLOWED_ORIGIN,
   methods: 'GET,POST,PATCH,DELETE',
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'Content-Length', 'X-Requested-With', 'Accept'],
@@ -48,7 +50,9 @@ app.use(bodyParser.json())
 app.use(cookieParser())
 app.use(express.static(path.join(__dirname, 'public')))
 
-app.use('/api/v1/tasks', tasks)
+app.use('/v1', signupRoute)
+app.use('/api/v1/users', userRoute)
+app.use('/api/v1/tasks', tasksRoute)
 
 app.get('/', async (req, res) => {
   const readmePath = path.resolve(__dirname, 'README.md')

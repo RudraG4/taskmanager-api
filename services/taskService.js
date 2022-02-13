@@ -1,7 +1,8 @@
 import _ from 'lodash'
 import moment from 'moment'
-import Task from '../database/models/Task.js'
-import TaskState from '../database/models/TaskState.js'
+import Task from '../models/Task.js'
+import TaskState from '../models/TaskState.js'
+import { Success, Failure } from '../dto/dto.js'
 import { nLog, eLog } from '../util/rlogger.js'
 
 const isValidDate = (datetime) => moment(datetime, 'YYYY-MM-DD HH:mm:ss').isValid()
@@ -59,7 +60,6 @@ const createTask = async (request, response) => {
   let subTaskIds = []
   let parentTaskId
   const data = request.body
-  const json = {}
   try {
     let subTasks = []
     if (!_.isEmpty(data.subtasks)) {
@@ -78,25 +78,16 @@ const createTask = async (request, response) => {
         await parentTask.save()
       }
     }
-
-    json.status = 'success'
-    json.task = parentTaskId
-    response.status(200)
-  } catch (e) {
-    eLog(`Error: ${e.message}`)
-
+    return Success(response, 200, { taskid: parentTaskId })
+  } catch (error) {
+    eLog(`Error: ${error.message}`)
     if (parentTaskId) {
       setTimeout(async () =>
         await Task.deleteMany({ $or: [{ taskid: { $regex: parentTaskId + '.*' } }, { _id: { $in: subTaskIds } }] }),
       1000)
     }
-
-    json.status = 'failure'
-    json.error = e.message
-    response.status(500)
+    return Failure(response, 500, error)
   }
-  nLog(`Returning: ${JSON.stringify(json)}`)
-  return response.json(json)
 }
 
 const queryTask = async (request, response) => {
@@ -106,10 +97,10 @@ const queryTask = async (request, response) => {
       .select('-__v')
       .lean()
       .populate('subtasks', '-__v')
-      .transform(formatter)
-    return response.status(200).json({ result: task || {}, status: 'success' })
-  } catch (e) {
-    return response.status(500).json({ status: 'failure', error: e.message })
+      .transform(formatter).limit(1)
+    return Success(response, 200, task && task.length ? task[0] : {})
+  } catch (error) {
+    return Failure(response, 500, error)
   }
 }
 
@@ -117,8 +108,7 @@ const queryTasks = async (request, response) => {
   try {
     const { starttime, endtime, status, tags, taskid, limit = 1000 } = request.query
     if ((starttime && !isValidDate(starttime)) || (endtime && !isValidDate(endtime))) {
-      return response.status(400)
-        .json({ status: 'failure', error: 'Invalid date format. Valid format YYYY-MM-DD HH:mm:ss' })
+      return Failure(response, 400, 'Invalid date format. Valid format YYYY-MM-DD HH:mm:ss')
     }
     let query = Task.find()
     if (starttime) {
@@ -146,10 +136,10 @@ const queryTasks = async (request, response) => {
       .populate('subtasks', '-__v')
       .transform(formatter)
       .exec()
-    return response.status(200).json({ results: tasks || [], status: 'success' })
-  } catch (e) {
-    eLog(`Error: ${e.message}`)
-    return response.status(500).json({ status: 'failure', error: e.message })
+    return Success(response, 200, tasks || [])
+  } catch (error) {
+    eLog(`Error: ${error.message}`)
+    return Failure(response, 500, error)
   }
 }
 
@@ -158,7 +148,7 @@ const deleteTask = async (request, response) => {
     const { taskid } = request.params
     const task = await Task.findOne({ taskid })
     if (_.isEmpty(task)) {
-      return response.status(200).json({ status: 'failure', error: 'No matching task found' })
+      return Failure(response, 404, 'No matching task found')
     }
     if (task.subtasks && task.subtasks.length) {
       await Task.deleteMany({ _id: { $in: task.subtasks } })
@@ -171,20 +161,19 @@ const deleteTask = async (request, response) => {
         parenttask.save()
       }
     }
-    return response.status(200).json({ result: deleteRecord || {}, status: 'success' })
-  } catch (e) {
-    eLog(`Error: ${e.message}`)
-    return response.status(500).json({ status: 'failure', error: e.message })
+    return Success(response, 200, deleteRecord)
+  } catch (error) {
+    eLog(`Error: ${error.message}`)
+    return Failure(response, 500, error)
   }
 }
 
 const updateTask = async (request, response) => {
-  const json = {}
   try {
     const { taskid } = request.params
     const task = await Task.findOne({ taskid })
     if (_.isEmpty(task)) {
-      return response.status(200).json({ status: 'failure', error: 'No matching task found' })
+      return Failure(response, 404, 'No matching task found')
     }
     const data = request.body
     if (_.has(data, 'description')) task.description = data.description
@@ -196,23 +185,17 @@ const updateTask = async (request, response) => {
     let parentTask
     if (task.parenttask) parentTask = await Task.findOne({ taskid: task.parenttask })
     await validate(task, parentTask)
-    json.status = 'success'
-    json.result = await Task.updateOne({ taskid }, task, { runValidators: true, new: true })
-    response.status(200)
-  } catch (e) {
-    eLog(`Error: ${e.message}`)
-    json.status = 'failure'
-    json.error = e.message
-    response.status(500)
+    return Success(response, 200, await Task.updateOne({ taskid }, task, { runValidators: true, new: true }) || {})
+  } catch (error) {
+    eLog(`Error: ${error.message}`)
+    return Failure(response, 500, error)
   }
-  nLog(`Returning: ${JSON.stringify(json)}`)
-  return response.json(json)
 }
 
 // TODO
 const report = async (request, response) => {
   nLog('Reporting Task')
-  response.status(200).send('Tasks: ')
+  return Success(response, 200, 'Tasks: ')
 }
 
 export default {

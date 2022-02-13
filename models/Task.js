@@ -53,8 +53,7 @@ const TaskStructure = {
   },
   updated: {
     type: Date,
-    immutable: true,
-    default: Date.now
+    immutable: true
   }
 }
 
@@ -73,7 +72,7 @@ TaskSchema.pre('save', async function (next) {
         this.taskid = `T-${('00' + sequence.seq).slice(-2)}`
       }
     } else {
-      this.updatedat = new Date().toISOString()
+      this.updated = new Date().toISOString()
     }
     next()
   } catch (error) {

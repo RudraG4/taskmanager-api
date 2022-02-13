@@ -21,6 +21,7 @@
     "url": "https://github.com/RudraG4/taskmanager-api"
   },
   "dependencies": {
+    "bcrypt": "^5.0.1",
     "body-parser": "^1.15.2",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
