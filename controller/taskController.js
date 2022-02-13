@@ -19,48 +19,40 @@ const formatter = (tasks) => {
   })
 }
 
-const isOverlapping = (starttime, endtime) => {
+const isOverlapping = async (starttime, endtime, taskid) => {
+  if (!starttime && !endtime) return 0
   let query = Task.find()
-  if (starttime) {
-    query = query.where('endtime').gte(starttime)
-  }
-  if (endtime) {
-    query = query.where('starttime').lte(endtime)
-  }
-  if (!_.isEmpty(query.getFilter())) {
-    query = query.where('status').in([TaskState.PLANNED, TaskState.INPROGRESS])
-    return query.count()
-  }
-  return Promise.resolve(0)
+  if (starttime) query = query.where('endtime').gte(starttime)
+  if (endtime) query = query.where('starttime').lte(endtime)
+  if (taskid) query = query.where('taskid').ne(taskid)
+  query = query.where('status').in([TaskState.PLANNED, TaskState.INPROGRESS])
+  return await query.count()
 }
 
-const validate = async (data, parent) => {
-  if ((data.starttime && !isValidDate(data.starttime)) || (data.endtime && !isValidDate(data.endtime))) {
+const validate = async (task, parent) => {
+  if ((task.starttime && !isValidDate(task.starttime)) || (task.endtime && !isValidDate(task.endtime))) {
     throw new Error('Invalid date format. Valid format YYYY-MM-DD HH:mm:ss')
   }
 
-  if (data.starttime) data.starttime = moment.utc(data.starttime)
-  if (data.endtime) data.endtime = moment.utc(data.endtime)
+  if (task.starttime) task.starttime = moment.utc(task.starttime)
+  if (task.endtime) task.endtime = moment.utc(task.endtime)
 
   if (parent) {
-    data.parenttask = parent.taskid
-    if (parent.starttime && data.starttime && !moment(data.starttime).isBetween(parent.starttime, parent.endtime, undefined, '[]')) {
+    task.parenttask = parent.taskid
+    if (parent.starttime && task.starttime && !moment(task.starttime).isBetween(parent.starttime, parent.endtime, undefined, '[]')) {
       throw new Error('Subtask start/endtime must be within parents timeline')
     }
-    if (parent.endtime && data.endtime && !moment(data.endtime).isBetween(parent.starttime, parent.endtime, undefined, '[]')) {
+    if (parent.endtime && task.endtime && !moment(task.endtime).isBetween(parent.starttime, parent.endtime, undefined, '[]')) {
       throw new Error('Subtask start/endtime must be within parents timeline')
     }
-  } else {
-    if (await isOverlapping(data.starttime, data.endtime)) {
-      throw new Error('Task start/endtime overlaps with one or more other tasks')
-    }  
+  } else if (await isOverlapping(task.starttime, task.endtime, task.taskid)) {
+    throw new Error('Task start/endtime overlaps with one or more other tasks')
   }
-  return data
 }
 
-const create = (data, parent) => {
-  data = validate(data, parent)
-  return Task.create(data)
+const create = async (task, parent) => {
+  await validate(task, parent)
+  return Task.create(task)
 }
 
 const createTask = async (request, response) => {
@@ -85,7 +77,7 @@ const createTask = async (request, response) => {
         parentTask.subtasks = subTaskIds
         await parentTask.save()
       }
-    }    
+    }
 
     json.status = 'success'
     json.task = parentTaskId
@@ -94,7 +86,7 @@ const createTask = async (request, response) => {
     eLog(`Error: ${e.message}`)
 
     if (parentTaskId) {
-      setTimeout(async () => 
+      setTimeout(async () =>
         await Task.deleteMany({ $or: [{ taskid: { $regex: parentTaskId + '.*' } }, { _id: { $in: subTaskIds } }] }),
       1000)
     }
@@ -203,7 +195,7 @@ const updateTask = async (request, response) => {
     if (_.has(data, 'status')) task.status = data.status
     let parentTask
     if (task.parenttask) parentTask = await Task.findOne({ taskid: task.parenttask })
-    validate(task, parentTask)
+    await validate(task, parentTask)
     json.status = 'success'
     json.result = await Task.updateOne({ taskid }, task, { runValidators: true, new: true })
     response.status(200)

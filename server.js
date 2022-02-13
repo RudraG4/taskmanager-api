@@ -1,26 +1,52 @@
-import express from 'express'
 import { fileURLToPath } from 'url'
+import logger from 'morgan'
 import path from 'path'
 import fs from 'fs'
-import bodyParser from 'body-parser'
-import cors from 'cors'
 import dotenv from 'dotenv'
+import express from 'express'
+import cookieParser from 'cookie-parser'
+import bodyParser from 'body-parser'
+import helmet from 'helmet'
+import cors from 'cors'
+import ratelimit from 'express-rate-limit'
 import tasks from './routes/tasks.js' // Task Routes
 import { marked } from 'marked' // Markdown parser
-import { rLog, eLog, nLog } from './util/rlogger.js' // Simple Colored Loggers
+import { eLog, nLog } from './util/rlogger.js' // Simple Colored Loggers
 import db from './database/connection.js'
 
 dotenv.config()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const port = process.env.PORT || 5000
+const corsOptions = {
+  origin: 'http://localhost:3000',
+  methods: 'GET,POST,PATCH,DELETE',
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'Content-Length', 'X-Requested-With', 'Accept'],
+  maxAge: 2500,
+  optionsSuccessStatus: 200
+}
+
+const ratelimitter = ratelimit({
+  windowMs: 15 * 60 * 1000, // 15 Minutes
+  max: 100, // 100 Requests
+  standardHeaders: true,
+  legacyHeaders: false
+})
 
 const app = express()
-const port = process.env.PORT || 5000
-
-app.use(cors())
+if (process.env.NODE_ENV === 'dev') {
+  app.use(logger('dev'))
+} else {
+  app.use(logger('common'))  
+}
+app.use(helmet())
+app.use(cors(corsOptions))
+app.use(ratelimitter)
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
-app.use(rLog)
+app.use(cookieParser())
+app.use(express.static(path.join(__dirname, 'public')))
 
 app.use('/api/v1/tasks', tasks)
 
@@ -34,7 +60,11 @@ app.get('/', async (req, res) => {
   })
 })
 
-const run = async () => {
+app.use((request, response) => {
+  return response.status(404).send({ status: 404, error: 'Not Found' })
+})
+
+const init = async () => {
   try {
     await db.connectDB()
     app.listen(port, nLog(`Server is listening on port ${port}`))
@@ -43,7 +73,7 @@ const run = async () => {
   }
 }
 
-run()
+init()
 
 process.on('beforeExit', db.disconnectDB)
 process.on('SIGINT', db.disconnectDB)

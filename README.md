@@ -1,5 +1,7 @@
 # Simple Task Management System -Backend
 
+## ReadMe under construction
+
 ## Tech Stack
 **Server:** Node, Express
 
@@ -22,7 +24,7 @@ POST    /api/v1/tasks
 GET     /api/v1/tasks              
 ```
 
-#### Query  a specific task
+#### Query a specific task
 ```http
 GET     /api/v1/tasks/:taskid      
 ```
@@ -47,30 +49,18 @@ GET     /api/v1/tasks/report
 POST    /api/v1/auth
 ```
 
-
-
-## Installation
-
-Install my-project with npm
-
-```bash
-  npm install my-project
-  cd my-project
-```
-    
-
 ## Run Locally
 
 Clone the project
 
 ```bash
-  git clone https://link-to-project
+  git clone https://github.com/RudraG4/taskmanager-api
 ```
 
 Go to the project directory
 
 ```bash
-  cd my-project
+  cd taskmanager-api
 ```
 
 Install dependencies
@@ -82,5 +72,5 @@ Install dependencies
 Start the server
 
 ```bash
-  npm run start
+  npm start
 ```
