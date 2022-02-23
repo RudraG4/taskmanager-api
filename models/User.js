@@ -24,7 +24,7 @@ const userStructure = {
       validator: (v) => {
         // TODO
       },
-      message: props => `${props.value} is not a valid number`
+      message: props => `${props.value} is not a valid mobile number`
     }
   },
   isEmailVerified: {

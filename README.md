@@ -44,11 +44,6 @@ PATCH   /api/v1/tasks/:taskid
 GET     /api/v1/tasks/report       
 ```
 
-#### Authenticate
-```http
-POST    /api/v1/auth
-```
-
 ## Run Locally
 
 Clone the project
