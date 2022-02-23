@@ -4,6 +4,7 @@
   "description": "A Taskmanager API project developed using Node JS, Express, MongoDB and Mongoose wrapper.",
   "main": "app.js",
   "type": "module",
+  "ignorePatterns": ["node_modules/*.*"],
   "scripts": {
     "lint": "eslint ./**/*.js",
     "start": "nodemon ./app.js"
