@@ -8,10 +8,6 @@ const workspaceStructure = {
     unique: true,
     maxlength: [250, 'Workspace name exceeds maximum 250 chars']
   },
-  projects: [{
-    type: mongoose.SchemaTypes.ObjectId,
-    ref: 'project'
-  }],
   createdby: {
     type: String,
     required: true

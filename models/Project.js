@@ -1,6 +1,11 @@
 import mongoose from 'mongoose'
 
 const projectStructure = {
+  workspaceid: {
+    type: mongoose.Types.ObjectId,
+    ref: 'workspace'
+  },
+  projectid: mongoose.Types.ObjectId,
   projectname: {
     type: String,
     required: [true, 'projectname is required'],
@@ -19,5 +24,12 @@ const projectStructure = {
 }
 
 const projectSchema = new mongoose.Schema(projectStructure)
+
+projectSchema.pre('save', function (next) {
+  if (this.isNew) {
+    this.projectid = this._id
+  }
+  next()
+})
 
 export default mongoose.model('project', projectSchema)

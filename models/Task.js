@@ -3,6 +3,11 @@ import Sequence from './Sequence.js'
 import STATES from './TaskState.js'
 
 const TaskStructure = {
+  projectid: {
+    type: mongoose.Types.ObjectId,
+    ref: 'project',
+    required: [true, 'Project Id is required']
+  },
   parenttask: String,
   taskid: {
     type: String,
