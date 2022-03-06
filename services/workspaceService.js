@@ -33,8 +33,7 @@ const getWorkspaces = async (request, response) => {
       return Success(response, 200, result)
     }
     const results = await Workspace.find()
-      .select('-_id -__v -projects')
-      .exec()
+      .select('-_id -__v -projects').lean()
     return Success(response, 200, results)
   } catch (error) {
     return Failure(response, 500, error)

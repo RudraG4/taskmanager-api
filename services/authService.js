@@ -65,7 +65,7 @@ const signin = async (request, response) => {
 const authenticate = async (token) => {  
   try {
     const { payload } = jwt.verify(token, JWT_SECRET, VERIFY_OPTIONS)
-    return await findByUserName(payload.user)
+    return await findByUserName(payload.user, '-password')
   } catch (err) {
     if (err instanceof jwt.JsonWebTokenError) {
       throw new Error('invalid access_token')

@@ -18,6 +18,12 @@ tasks.delete('/:taskid', taskService.deleteTask)
 // Update a specific Task
 tasks.patch('/:taskid', taskService.updateTask)
 
+// Add a subtask
+tasks.post('/:taskid/subtask', taskService.addSubTask)
+
+// Update a subtask
+tasks.patch('/:taskid/subtask/:subtaskid', taskService.editSubTask)
+
 // Query Task Report(Completed, InProgress, Todo etc.)
 tasks.get('/report', taskService.report)
 

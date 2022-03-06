@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import Sequence from './Sequence.js'
-import STATES from './TaskState.js'
+import { TaskState, TaskPrority } from './TaskConstants.js'
+import User from './User.js'
 
 const TaskStructure = {
   projectid: {
@@ -23,21 +24,40 @@ const TaskStructure = {
     type: String,
     maxLength: [250, 'Description exceeds max size 250']
   },
-  tasktype: {
+  priority: {
     type: String,
-    required: [true, 'Task Type (SwimLane) is required']
+    default: TaskPrority.LOW,
+    validate: {
+      validator: (v) => !(v && ![...Object.values(TaskPrority)].includes(v)),
+      message: props => `Unsupported value ${props.value} for priority`
+    }
   },
+  tasktype: String,
+  lanename: String,
   starttime: Date,
   endtime: Date,
-  userid: {
+  assignee: {
     type: String,
-    required: [true, 'User is required']
+    validate: {
+      validator: async (username) => {
+        try {
+          if (username) {
+            const user = await User.findOne({ username }).lean()
+            if (!user) return false
+          }
+          return true
+        } catch (error) {
+          return false
+        } 
+      },
+      message: props => `${props.value} is not a valid user`
+    }
   },
   status: {
     type: String,
-    default: STATES.NEW,
+    default: TaskState.NEW,
     validate: {
-      validator: (v) => !(v && ![...Object.values(STATES)].includes(v)),
+      validator: (v) => !(v && ![...Object.values(TaskState)].includes(v)),
       message: props => `Unsupported value ${props.value} for status`
     }
   },
@@ -48,7 +68,7 @@ const TaskStructure = {
   tags: [String],
   links: [String],
   comments: [{
-    body: { type: String, required: [true, 'Comment Body is required'], maxLength: [250, 'Comment exceeds max size 250'] },
+    body: { type: String, required: [true, 'Comment cannot be empty'], maxLength: [250, 'Comment exceeds max size 250'] },
     date: { type: Date, default: Date.now }
   }],
   created: {
@@ -71,11 +91,7 @@ TaskSchema.pre('save', async function (next) {
       const sequence = await Sequence.findOneAndUpdate({ model: 'Task', field: 'taskid' },
         { $inc: { seq: 1 } },
         { upsert: true, new: true })
-      if (this.parenttask) {
-        this.taskid = `${this.parenttask}#T-${('00' + sequence.seq).slice(-2)}`
-      } else {
-        this.taskid = `T-${('00' + sequence.seq).slice(-2)}`
-      }
+      this.taskid = `T-${('00' + sequence.seq).slice(-2)}`
     } else {
       this.updated = new Date().toISOString()
     }

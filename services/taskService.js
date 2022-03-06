@@ -1,8 +1,8 @@
 import _ from 'lodash'
 import moment from 'moment'
 import Task from '../models/Task.js'
-import TaskState from '../models/TaskState.js'
-import { Success, Failure } from '../dto/dto.js'
+import { TaskState } from '../models/TaskConstants.js'
+import { Success, Paginate, Failure } from '../dto/dto.js'
 import { nLog, eLog } from '../util/rlogger.js'
 
 const isValidDate = (datetime) => moment(datetime, 'YYYY-MM-DD HH:mm:ss').isValid()
@@ -30,7 +30,7 @@ const isOverlapping = async (starttime, endtime, taskid) => {
   return await query.count()
 }
 
-const validate = async (task, parent) => {
+const validate = async (task) => {
   if ((task.starttime && !isValidDate(task.starttime)) || (task.endtime && !isValidDate(task.endtime))) {
     throw new Error('Invalid date format. Valid format YYYY-MM-DD HH:mm:ss')
   }
@@ -38,22 +38,9 @@ const validate = async (task, parent) => {
   if (task.starttime) task.starttime = moment.utc(task.starttime)
   if (task.endtime) task.endtime = moment.utc(task.endtime)
 
-  if (parent) {
-    task.parenttask = parent.taskid
-    if (parent.starttime && task.starttime && !moment(task.starttime).isBetween(parent.starttime, parent.endtime, undefined, '[]')) {
-      throw new Error('Subtask start/endtime must be within parents timeline')
-    }
-    if (parent.endtime && task.endtime && !moment(task.endtime).isBetween(parent.starttime, parent.endtime, undefined, '[]')) {
-      throw new Error('Subtask start/endtime must be within parents timeline')
-    }
-  } else if (await isOverlapping(task.starttime, task.endtime, task.taskid)) {
+  if (await isOverlapping(task.starttime, task.endtime, task.taskid)) {
     throw new Error('Task start/endtime overlaps with one or more other tasks')
   }
-}
-
-const create = async (task, parent) => {
-  await validate(task, parent)
-  return Task.create(task)
 }
 
 const createTask = async (request, response) => {
@@ -67,11 +54,22 @@ const createTask = async (request, response) => {
       data.subtasks = []
     }
 
-    const parentTask = await create(data)
+    await validate(data)
+    const parentTask = await Task.create(data)
     parentTaskId = parentTask.taskid
 
     if (subTasks && subTasks.length) {
-      subTasks = subTasks.map((subtask) => create(subtask, parentTask))
+      subTasks = subTasks.map((subtask) => {
+        subtask = {
+          projectid: data.projectid,
+          parenttask: parentTaskId,
+          taskname: subtask.taskname,
+          description: subtask.description,
+          priority: data.priority,
+          assignee: subtask.assignee || data.assignee
+        }
+        return Task.create(subtask)
+      })
       subTaskIds = (await Promise.all(subTasks)).map((task) => task._id)
       if (subTaskIds.length) {
         parentTask.subtasks = subTaskIds
@@ -93,10 +91,11 @@ const createTask = async (request, response) => {
 const queryTask = async (request, response) => {
   try {
     const { taskid } = request.params
-    const task = await Task.findOne({ taskid })
-      .select('-__v')
+    const { projectid } = request.query
+    const task = await Task.findOne({ taskid, projectid })
+      .select('-__v -_id')
       .lean()
-      .populate('subtasks', '-__v')
+      .populate('subtasks', '-__v -_id')
       .transform(formatter).limit(1)
     return Success(response, 200, task && task.length ? task[0] : {})
   } catch (error) {
@@ -106,7 +105,10 @@ const queryTask = async (request, response) => {
 
 const queryTasks = async (request, response) => {
   try {
-    const { starttime, endtime, status, tags, taskid, limit = 1000 } = request.query
+    const { starttime, endtime, status, tags, taskid, projectid } = request.query
+    const limit = parseInt(request.query.limit, 10) || 1000
+    const page = parseInt(request.query.page, 10) || 1
+
     if ((starttime && !isValidDate(starttime)) || (endtime && !isValidDate(endtime))) {
       return Failure(response, 400, 'Invalid date format. Valid format YYYY-MM-DD HH:mm:ss')
     }
@@ -126,17 +128,19 @@ const queryTasks = async (request, response) => {
     if (taskid) {
       query = query.where('taskid').equals(taskid)
     }
-    if (_.isEmpty(query.getFilter())) {
-      query = query.where('parenttask').equals(null)
-    }
-    const tasks = await query.limit(+limit)
-      .sort('+starttime')
-      .select('-__v')
+    query = query.where('projectid').equals(projectid)
+    query = query.where('parenttask').equals(null)
+    const total = await Task.countDocuments(query.getFilter()).exec()
+    const tasks = await query
+      .sort({ starttime: 1, taskid: 1 })
+      .select('-_id -__v')
+      .skip((page - 1) * limit)
+      .limit(limit)
       .lean()
-      .populate('subtasks', '-__v')
+      .populate('subtasks', '-__v -_id -links -tags -comments')
       .transform(formatter)
       .exec()
-    return Success(response, 200, tasks || [])
+    return Paginate(response, 200, { results: tasks || [], limit, total: total, totalpages: Math.ceil(total / limit, 10), currentpage: page })
   } catch (error) {
     eLog(`Error: ${error.message}`)
     return Failure(response, 500, error)
@@ -146,7 +150,8 @@ const queryTasks = async (request, response) => {
 const deleteTask = async (request, response) => {
   try {
     const { taskid } = request.params
-    const task = await Task.findOne({ taskid })
+    const { projectid } = request.query
+    const task = await Task.findOne({ taskid, projectid })
     if (_.isEmpty(task)) {
       return Failure(response, 404, 'No matching task found')
     }
@@ -171,23 +176,73 @@ const deleteTask = async (request, response) => {
 const updateTask = async (request, response) => {
   try {
     const { taskid } = request.params
-    const task = await Task.findOne({ taskid })
+    const { projectid } = request.query
+    const task = await Task.findOne({ taskid, projectid })
     if (_.isEmpty(task)) {
       return Failure(response, 404, 'No matching task found')
     }
     const data = request.body
+    if (_.has(data, 'taskname')) task.taskname = data.taskname
     if (_.has(data, 'description')) task.description = data.description
-    if (_.has(data, 'starttime')) task.starttime = data.starttime
-    if (_.has(data, 'endtime')) task.endtime = data.endtime
+    if (_.has(data, 'priority')) task.priority = data.priority
     if (_.has(data, 'tags')) task.tags = data.tags || []
     if (_.has(data, 'links')) task.links = data.links || []
     if (_.has(data, 'status')) task.status = data.status
-    let parentTask
-    if (task.parenttask) parentTask = await Task.findOne({ taskid: task.parenttask })
-    await validate(task, parentTask)
-    return Success(response, 200, await Task.updateOne({ taskid }, task, { runValidators: true, new: true }) || {})
+    if (!task.parenttask) {
+      if (_.has(data, 'starttime')) task.starttime = data.starttime
+      if (_.has(data, 'endtime')) task.endtime = data.endtime
+      await validate(task)
+    }
+    return Success(response, 200, await Task.findOneAndUpdate({ taskid, projectid }, task, { runValidators: true, new: true, lean: true, projection: { _id: 0, __v: 0 } }) || {})
   } catch (error) {
     eLog(`Error: ${error.message}`)
+    return Failure(response, 500, error)
+  }
+}
+
+const addSubTask = async (request, response) => {
+  try {
+    const data = request.body
+    const parenttask = request.params.taskid
+    const task = await Task.findOne({ taskid: parenttask, projectid: data.projectid })
+    if (!task) {
+      return Failure(response, 400, 'No matching parenttask found in project')
+    }
+    const subtask = {
+      projectid: task.projectid,
+      parenttask,
+      taskname: data.taskname,
+      description: data.description,
+      priority: data.priority || task.priority,
+      assignee: data.assignee || task.assignee
+    }
+    const subtaskdetails = await Task.create(subtask)
+    task.subtasks.push(subtaskdetails._id)
+    await task.save()
+    return Success(response, 200, subtaskdetails)
+  } catch (error) {
+    return Failure(response, 500, error)
+  }
+}
+
+const editSubTask = async (request, response) => {
+  try {
+    const data = request.body
+    const parenttask = request.params.taskid
+    const subtaskid = request.params.subtaskid
+    const subtask = await Task.findOne({ parenttask, taskid: subtaskid, projectid: data.projectid })
+    if (!subtask) {
+      return Failure(response, 400, 'No matching parenttask found in project')
+    }
+    if (_.has(data, 'taskname')) subtask.taskname = data.taskname
+    if (_.has(data, 'description')) subtask.description = data.description
+    if (_.has(data, 'priority')) subtask.priority = data.priority
+    if (_.has(data, 'tags')) subtask.tags = data.tags || []
+    if (_.has(data, 'links')) subtask.links = data.links || []
+    if (_.has(data, 'status')) subtask.status = data.status
+    const subtaskdetails = await subtask.save()
+    return Success(response, 200, subtaskdetails)
+  } catch (error) {
     return Failure(response, 500, error)
   }
 }
@@ -204,5 +259,7 @@ export default {
   queryTask,
   deleteTask,
   updateTask,
+  addSubTask,
+  editSubTask,
   report
 }
