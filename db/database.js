@@ -1,6 +1,7 @@
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
 import { nLog } from '../util/rlogger.js'
+import models from '../models/models.js'
 
 dotenv.config()
 
@@ -25,7 +26,13 @@ const disconnectDB = (callback) => {
   return mongoose.disconnect(callback)
 }
 
+const initCollection = async () => {
+  const collections = Object.keys(models).map(model => models[model].createCollection())
+  return await Promise.all(collections)
+}
+
 export default {
   connectDB,
-  disconnectDB
+  disconnectDB,
+  initCollection
 }

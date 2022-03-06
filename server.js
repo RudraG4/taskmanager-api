@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-import db from './db/connection.js'
+import db from './db/database.js'
 import { eLog, nLog } from './util/rlogger.js'
 
 dotenv.config()
@@ -10,6 +10,7 @@ const init = async (app) => {
   try {
     if (app) {
       await db.connectDB()
+      await db.initCollection()
       app.listen(port, nLog(`Server is listening on port ${port}`))
       process.on('beforeExit', db.disconnectDB)
       process.on('SIGINT', db.disconnectDB)
