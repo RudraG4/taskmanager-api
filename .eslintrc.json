@@ -17,5 +17,6 @@
         "no-unused-vars": 1,
         "block-scoped-var": 1,
         "no-trailing-spaces": 0
-    }
+    },
+    "ignorePatterns": ["**/node_modules/**"]
 }

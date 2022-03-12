@@ -5,7 +5,7 @@
   "main": "./src/app.js",
   "type": "module",
   "scripts": {
-    "lint": "eslint ./**/*.js --ignore-pattern ./node_modules/*.js",
+    "lint": "eslint ./src/*.js",
     "start": "nodemon ./src/app.js"
   },
   "keywords": [
