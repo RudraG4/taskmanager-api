@@ -1,6 +1,6 @@
 import dotenv from 'dotenv'
-import db from './db/database.js'
-import { eLog, nLog } from './util/rlogger.js'
+import db from '../db/database.js'
+import { eLog, nLog } from '../util/rlogger.js'
 
 dotenv.config()
 const port = process.env.PORT || 5000

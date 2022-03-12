@@ -2,11 +2,11 @@
   "name": "taskmanager-api",
   "version": "1.0.0",
   "description": "A Taskmanager API project developed using Node JS, Express, MongoDB and Mongoose wrapper.",
-  "main": "app.js",
+  "main": "./src/app.js",
   "type": "module",
   "scripts": {
     "lint": "eslint ./**/*.js --ignore-pattern ./node_modules/*.js",
-    "start": "nodemon ./app.js"
+    "start": "nodemon ./src/app.js"
   },
   "keywords": [
     "TaskManager",
