@@ -11,9 +11,7 @@ const userStructure = {
     type: String,
     required: [true, 'Email is required'],
     validate: {
-      validator: (v) => {
-        // TODO
-      },
+      validator: (v) => /^[a-zA-Z0-9-_.+]+@[a-zA-Z0-9.-]+$/.test(v),
       message: props => `${props.value} is not a valid email`
     }
   },
@@ -21,9 +19,7 @@ const userStructure = {
     type: String,
     default: '',
     validate: {
-      validator: (v) => {
-        // TODO
-      },
+      validator: (v) => /^(\+\d{1,3}[- ]?)?\d{10}$/.test(v),
       message: props => `${props.value} is not a valid mobile number`
     }
   },

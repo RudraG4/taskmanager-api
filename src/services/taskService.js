@@ -44,46 +44,107 @@ const validate = async (task) => {
 }
 
 const createTask = async (request, response) => {
-  let subTaskIds = []
   let parentTaskId
-  const data = request.body
-  try {
-    let subTasks = []
-    if (!_.isEmpty(data.subtasks)) {
-      subTasks = data.subtasks
-      data.subtasks = []
-    }
+  let subTaskIds = []
+  try {    
+    await validate(request.body)
 
-    await validate(data)
+    const data = request.body
+    let subTasks = data.subtasks || []
+    delete data.subtasks
+    
     const parentTask = await Task.create(data)
     parentTaskId = parentTask.taskid
 
     if (subTasks && subTasks.length) {
-      subTasks = subTasks.map((subtask) => {
-        subtask = {
-          projectid: data.projectid,
-          parenttask: parentTaskId,
-          taskname: subtask.taskname,
-          description: subtask.description,
-          priority: data.priority,
-          assignee: subtask.assignee || data.assignee
-        }
-        return Task.create(subtask)
-      })
+      subTasks = subTasks.map((subtask) => createSubTask(parentTask, subtask))
       subTaskIds = (await Promise.all(subTasks)).map((task) => task._id)
-      if (subTaskIds.length) {
-        parentTask.subtasks = subTaskIds
-        await parentTask.save()
-      }
     }
+
+    Task.emit('task-created', { parentTask, subTasks })
     return Success(response, 200, { taskid: parentTaskId })
   } catch (error) {
     eLog(`Error: ${error.message}`)
-    if (parentTaskId) {
-      setTimeout(async () =>
-        await Task.deleteMany({ $or: [{ taskid: { $regex: parentTaskId + '.*' } }, { _id: { $in: subTaskIds } }] }),
-      1000)
+    Task.emit('task-create-error', { parentTaskId, subTaskIds })
+    return Failure(response, 500, error)
+  }
+}
+
+const createSubTask = async (parentTask, data) => {
+  const subTaskDoc = {
+    parenttask: parentTask.taskid,
+    projectid: parentTask.projectid,
+    taskname: data.taskname,
+    description: data.description,
+    priority: data.priority,
+    assignee: data.assignee
+  }
+  const subTask = await Task.create(subTaskDoc)
+  Task.emit('subtask-created', { parentTask, subTask })
+  return subTask
+}
+
+const addSubTask = async (request, response) => {
+  try {
+    const subtask = request.body
+    const parenttaskid = request.params.taskid
+    const parenttask = await Task.findOne({ taskid: parenttaskid, projectid: subtask.projectid })
+    if (_.isEmpty(parenttask)) {
+      return Failure(response, 400, 'No matching parenttask found in project')
     }
+    return Success(response, 200, await createSubTask(parenttask, subtask))
+  } catch (error) {
+    return Failure(response, 500, error)
+  }
+}
+
+const editSubTask = async (request, response) => {
+  try {
+    const data = request.body
+    const parentTask = request.params.taskid
+    const subTaskId = request.params.subtaskid
+    const subTask = await Task.findOne({ parenttask: parentTask, taskid: subTaskId, projectid: data.projectid })
+    if (_.isEmpty(subTask)) {
+      return Failure(response, 400, 'No matching parenttask found in project')
+    }
+    if (_.has(data, 'taskname')) subTask.taskname = data.taskname
+    if (_.has(data, 'description')) subTask.description = data.description
+    if (_.has(data, 'priority')) subTask.priority = data.priority
+    if (_.has(data, 'tags')) subTask.tags = data.tags || []
+    if (_.has(data, 'links')) subTask.links = data.links || []
+    if (_.has(data, 'status')) subTask.status = data.status
+    const subTaskDetails = await subTask.save()
+    return Success(response, 200, subTaskDetails)
+  } catch (error) {
+    return Failure(response, 500, error)
+  }
+}
+
+const updateTask = async (request, response) => {
+  try {
+    const { taskid } = request.params
+    const { projectid } = request.query
+    const task = await Task.findOne({ taskid, projectid })
+    if (_.isEmpty(task)) {
+      return Failure(response, 404, 'No matching task found')
+    }
+    const data = request.body
+    if (_.has(data, 'taskname')) task.taskname = data.taskname
+    if (_.has(data, 'description')) task.description = data.description
+    if (_.has(data, 'priority')) task.priority = data.priority
+    if (_.has(data, 'tags')) task.tags = data.tags || []
+    if (_.has(data, 'links')) task.links = data.links || []
+    if (_.has(data, 'status')) task.status = data.status
+    if (_.isEmpty(task.parenttask)) {
+      if (_.has(data, 'starttime')) task.starttime = data.starttime
+      if (_.has(data, 'endtime')) task.endtime = data.endtime
+      await validate(task)
+    }
+    const updatedTask = await Task.findOneAndUpdate({ taskid, projectid }, task, { runValidators: true, new: true, lean: true, projection: { _id: 0, __v: 0 } })
+    Task.emit('task-updated', updatedTask)
+    return Success(response, 200, updatedTask)
+  } catch (error) {
+    eLog(`Error: ${error.message}`)
     return Failure(response, 500, error)
   }
 }
@@ -159,7 +220,7 @@ const deleteTask = async (request, response) => {
       await Task.deleteMany({ _id: { $in: task.subtasks } })
     }
     const deleteRecord = await Task.findByIdAndDelete(task._id, { projection: { _id: 1, taskid: 1 } })
-    if (task.parenttask) {
+    if (!_.isEmpty(task.parenttask)) {
       const parenttask = await Task.findOne({ taskid: task.parenttask })
       if (parenttask && parenttask.subtasks && parenttask.subtasks.indexOf(deleteRecord._id) !== -1) {
         parenttask.subtasks.splice(parenttask.subtasks.indexOf(deleteRecord._id), 1)
@@ -173,85 +234,38 @@ const deleteTask = async (request, response) => {
   }
 }
 
-const updateTask = async (request, response) => {
-  try {
-    const { taskid } = request.params
-    const { projectid } = request.query
-    const task = await Task.findOne({ taskid, projectid })
-    if (_.isEmpty(task)) {
-      return Failure(response, 404, 'No matching task found')
-    }
-    const data = request.body
-    if (_.has(data, 'taskname')) task.taskname = data.taskname
-    if (_.has(data, 'description')) task.description = data.description
-    if (_.has(data, 'priority')) task.priority = data.priority
-    if (_.has(data, 'tags')) task.tags = data.tags || []
-    if (_.has(data, 'links')) task.links = data.links || []
-    if (_.has(data, 'status')) task.status = data.status
-    if (!task.parenttask) {
-      if (_.has(data, 'starttime')) task.starttime = data.starttime
-      if (_.has(data, 'endtime')) task.endtime = data.endtime
-      await validate(task)
-    }
-    return Success(response, 200, await Task.findOneAndUpdate({ taskid, projectid }, task, { runValidators: true, new: true, lean: true, projection: { _id: 0, __v: 0 } }) || {})
-  } catch (error) {
-    eLog(`Error: ${error.message}`)
-    return Failure(response, 500, error)
-  }
-}
-
-const addSubTask = async (request, response) => {
-  try {
-    const data = request.body
-    const parenttask = request.params.taskid
-    const task = await Task.findOne({ taskid: parenttask, projectid: data.projectid })
-    if (!task) {
-      return Failure(response, 400, 'No matching parenttask found in project')
-    }
-    const subtask = {
-      projectid: task.projectid,
-      parenttask,
-      taskname: data.taskname,
-      description: data.description,
-      priority: data.priority || task.priority,
-      assignee: data.assignee || task.assignee
-    }
-    const subtaskdetails = await Task.create(subtask)
-    task.subtasks.push(subtaskdetails._id)
-    await task.save()
-    return Success(response, 200, subtaskdetails)
-  } catch (error) {
-    return Failure(response, 500, error)
-  }
-}
-
-const editSubTask = async (request, response) => {
-  try {
-    const data = request.body
-    const parenttask = request.params.taskid
-    const subtaskid = request.params.subtaskid
-    const subtask = await Task.findOne({ parenttask, taskid: subtaskid, projectid: data.projectid })
-    if (!subtask) {
-      return Failure(response, 400, 'No matching parenttask found in project')
-    }
-    if (_.has(data, 'taskname')) subtask.taskname = data.taskname
-    if (_.has(data, 'description')) subtask.description = data.description
-    if (_.has(data, 'priority')) subtask.priority = data.priority
-    if (_.has(data, 'tags')) subtask.tags = data.tags || []
-    if (_.has(data, 'links')) subtask.links = data.links || []
-    if (_.has(data, 'status')) subtask.status = data.status
-    const subtaskdetails = await subtask.save()
-    return Success(response, 200, subtaskdetails)
-  } catch (error) {
-    return Failure(response, 500, error)
-  }
-}
-
 // TODO
 const report = async (request, response) => {
   nLog('Reporting Task')
   return Success(response, 200, 'Tasks: ')
 }
+
+Task.on('task-created', ({ parentTask, subTasks }) => {
+  /** TODO: Trigger Mail Notification */
+})
+
+Task.on('task-updated', (updatedTask) => {
+  /** TODO: Trigger Mail Notification */
+})
+
+Task.on('task-create-error', ({ parentTaskId, subTaskIds }) => {
+  if (parentTaskId && subTaskIds) {
+    process.nextTick(async () => {
+      await Task.deleteMany({ $or: [{ taskid: { $regex: parentTaskId + '.*' } }, { _id: { $in: subTaskIds } }] })
+    })
+  }
+})
+
+Task.on('subtask-created', async ({ parentTask, subTask }) => {
+  try {
+    if (parentTask) {
+      parentTask.subtasks.push(subTask._id)
+      await parentTask.save()
+    }
+  } catch (error) {
+    
+  }
+})
 
 export default {
   createTask,
