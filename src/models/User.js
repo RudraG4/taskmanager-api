@@ -15,11 +15,18 @@ const userStructure = {
       message: props => `${props.value} is not a valid email`
     }
   },
+  fullname: {
+    type: String,
+    required: [true, 'Full name is required'],
+    minLength: 1,
+    maxLength: 250
+  },
+  avatar: String,
   mobile: {
     type: String,
     default: '',
     validate: {
-      validator: (v) => /^(\+\d{1,3}[- ]?)?\d{10}$/.test(v),
+      validator: (v) => { if (v) { return /^(\+\d{1,3}[- ]?)?\d{10}$/.test(v) } return true },
       message: props => `${props.value} is not a valid mobile number`
     }
   },

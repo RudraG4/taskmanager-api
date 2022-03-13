@@ -10,7 +10,7 @@ export const Success = (response, status = 200, result, links) => {
     }
   }
   body._links = links
-  return response.status(200).json(body)
+  return response.status(status).json(body)
 }
 
 export const Paginate = (response, status = 200, result, links) => {
@@ -19,7 +19,7 @@ export const Paginate = (response, status = 200, result, links) => {
     body = { ...body, ...result }
   }
   body._links = links
-  return response.status(200).json(body)
+  return response.status(status).json(body)
 }
 
 export const Failure = (response, status = 500, error, links) => {

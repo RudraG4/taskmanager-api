@@ -21,7 +21,7 @@ const signup = async (request, response) => {
     const data = request.body
     const _user = await findByUserName(data.username)
     if (_user) {
-      const _links = { self: { href: `${request.baseUrl}${request.url}` }, signin: { href: `${request.baseUrl}/signin` } }
+      const _links = { signin: { href: `${request.baseUrl}/signin` } }
       return Failure(response, 200, `${data.username} username is not available`, _links)
     }
     const _email = await findByEmail(data.email)
@@ -42,7 +42,7 @@ const signin = async (request, response) => {
     const data = request.body
     const _user = await findByUserName(data.username)
     if (!_user) {
-      const _links = { self: { href: `${request.baseUrl}${request.url}` }, signup: { href: `${request.baseUrl}/signup` } }
+      const _links = { signup: { href: `${request.baseUrl}/signup` } }
       return Failure(response, 200, `${data.username} user doesnot exists`, _links)
     }
     if (await bcrypt.compare(data.password, _user.password)) {
