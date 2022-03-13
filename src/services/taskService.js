@@ -62,7 +62,7 @@ const createTask = async (request, response) => {
     }
 
     Task.emit('task-created', { parentTask, subTasks })
-    return Success(response, 200, { taskid: parentTaskId })
+    return Success(response, 201, { taskid: parentTaskId })
   } catch (error) {
     eLog(`Error: ${error.message}`)
     Task.emit('task-create-error', { parentTaskId, subTaskIds })
@@ -92,7 +92,7 @@ const addSubTask = async (request, response) => {
     if (_.isEmpty(parenttask)) {
       return Failure(response, 400, 'No matching parenttask found in project')
     }
-    return Success(response, 200, await createSubTask(parenttask, subtask))
+    return Success(response, 201, await createSubTask(parenttask, subtask))
   } catch (error) {
     return Failure(response, 500, error)
   }
@@ -242,13 +242,17 @@ const report = async (request, response) => {
 
 Task.on('task-created', ({ parentTask, subTasks }) => {
   /** TODO: Trigger Mail Notification */
+  nLog('task-created: parentTask ' + parentTask.taskid)
 })
 
 Task.on('task-updated', (updatedTask) => {
   /** TODO: Trigger Mail Notification */
+  nLog('task-updated: updatedTask ' + updatedTask.taskid)
 })
 
 Task.on('task-create-error', ({ parentTaskId, subTaskIds }) => {
+  nLog('task-create-error: parentTaskId ' + parentTaskId)
+  nLog('task-create-error: subTaskIds ' + subTaskIds)
   if (parentTaskId && subTaskIds) {
     process.nextTick(async () => {
       await Task.deleteMany({ $or: [{ taskid: { $regex: parentTaskId + '.*' } }, { _id: { $in: subTaskIds } }] })
@@ -258,6 +262,8 @@ Task.on('task-create-error', ({ parentTaskId, subTaskIds }) => {
 
 Task.on('subtask-created', async ({ parentTask, subTask }) => {
   try {
+    nLog('subtask-created: parentTask ' + parentTask.taskid)
+    nLog('subtask-created: subTask ' + subTask.taskid)
     if (parentTask) {
       parentTask.subtasks.push(subTask._id)
       await parentTask.save()

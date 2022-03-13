@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import * as bcrypt from 'bcrypt'
 
 const userStructure = {
   id: mongoose.Types.ObjectId,
@@ -53,5 +54,25 @@ const userStructure = {
   }
 }
 const UserSchema = new mongoose.Schema(userStructure)
+
+UserSchema.pre('save', async function (next) {
+  if (!this.isNew && !this.isModified('password')) {
+    return next()
+  }
+  const salt = await bcrypt.genSalt()
+  this.password = await bcrypt.hash(this.password, salt)
+})
+
+UserSchema.methods.comparePassword = async function (password) {
+  return await bcrypt.compare(password, this.password)
+}
+
+UserSchema.methods.toJSON = function () {
+  const user = this.toObject()
+  delete user.password
+  delete user._id
+  delete user.__v
+  return user
+}
 
 export default mongoose.model('user', UserSchema)

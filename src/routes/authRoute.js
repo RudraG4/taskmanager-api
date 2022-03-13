@@ -7,4 +7,8 @@ router.post('/signup', authService.signup)
 
 router.post('/signin', authService.signin)
 
+router.post('/forgetpwd', authService.forgetpassword)
+
+router.post('/resetpwd', authService.resetpassword)
+
 export default router
