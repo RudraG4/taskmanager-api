@@ -1,11 +1,11 @@
 import { Success, Failure } from '../dto/dto.js'
 import User from '../models/User.js'
 
-export const findByUserNameOrEmail = async ({ username, email }, selectFields = '') => {
+const findByUserNameOrEmail = async ({ username, email }, selectFields = '') => {
   if (username || email) {
     const select = '-__v ' + selectFields
     return await User.findOne({ $or: [{ username }, { email }] })
-      .select(select)
+      .select(select).exec()
   }
   return null
 }
@@ -15,17 +15,8 @@ const findUser = async (request, response) => {
     const { username } = request.params
     const user = await findByUserNameOrEmail({ username }, '-password')
     if (!user) {
-      return Failure(response, 200, `${username} username is not available`)
+      return Failure(response, 404, `${username} username is not available`)
     }
-    return Success(response, 200, user.toJSON())
-  } catch (error) {
-    return Failure(response, 500, error)
-  }
-}
-
-const createUser = async (request, response) => {
-  try {
-    const user = await User.create(request.body)
     return Success(response, 200, user.toJSON())
   } catch (error) {
     return Failure(response, 500, error)
@@ -45,7 +36,6 @@ const updateUser = async (request, response) => {
 }
 
 export default {
-  createUser,
   updateUser,
   findUser
 }

@@ -7,6 +7,8 @@ router.post('/signup', authService.signup)
 
 router.post('/signin', authService.signin)
 
+router.post('/signout', authService.signout)
+
 router.post('/forgetpwd', authService.forgetpassword)
 
 router.post('/resetpwd', authService.resetpassword)

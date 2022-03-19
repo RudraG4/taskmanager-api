@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'url'
 import dotenv from 'dotenv'
 import bodyParser from 'body-parser'
+import cookieParser from 'cookie-parser'
 import helmet from 'helmet'
 import cors from 'cors'
 import ratelimit from 'express-rate-limit'
@@ -35,5 +36,6 @@ export default [
   ratelimit(rateLimitOptions),
   bodyParser.urlencoded({ extended: false }),
   bodyParser.json(),
+  cookieParser(),
   express.static(path.join(__dirname, 'public'))
 ]

@@ -18,7 +18,7 @@ const init = async (app) => {
       process.on('SIGINT', db.disconnectDB)
     }
   } catch (error) {
-    eLog(`Error connecting.. ${error}`)
+    eLog(`Error.. ${error}`)
     if (error instanceof MongoError) {
       if (init.retry <= RETRY_COUNT) {
         nLog(`Retrying... ${init.retry}`)

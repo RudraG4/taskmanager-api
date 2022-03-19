@@ -51,7 +51,8 @@ const userStructure = {
     type: Date,
     default: Date.now,
     immutable: true
-  }
+  },
+  refreshToken: String
 }
 const UserSchema = new mongoose.Schema(userStructure)
 
@@ -70,6 +71,7 @@ UserSchema.methods.comparePassword = async function (password) {
 UserSchema.methods.toJSON = function () {
   const user = this.toObject()
   delete user.password
+  delete user.refreshToken
   delete user._id
   delete user.__v
   return user
